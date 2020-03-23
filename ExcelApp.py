@@ -71,8 +71,7 @@ class excelApp:
         self.driver.close()
         exit()
 
-    @staticmethod
-    def findExcelTable(table_name, tables):
+    def findExcelTable(self,table_name, tables):
         for table in tables:
             if table.displayName == table_name:
                 return table
@@ -121,12 +120,12 @@ class excelApp:
                 except:
                     continue
                 if type(rowData[0])==None:
-                    sh.cell(None,rowData[1],1).value=self.Returned_Date
+                    self.sh.cell(None,rowData[1],1).value=self.Returned_Date
                 elif type(rowData[0])==datetime:
                     if rowData[0]<self.Returned_Date:
-                        sh.cell(None,rowData[1],1).value=self.Returned_Date
+                        self.sh.cell(None,rowData[1],1).value=self.Returned_Date
                 else:
-                    sh['errors']='The Received Date column in row {} must be empty or a date'.format(rowData[1])
+                    self.sh['errors']='The Received Date column in row {} must be empty or a date'.format(rowData[1])
                     self.driver.close()
                     exit()
                         
