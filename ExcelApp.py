@@ -1,5 +1,3 @@
-# Web Scraping and Excel Project:
-
 from selenium import webdriver
 import openpyxl
 from datetime import datetime
@@ -8,7 +6,7 @@ class excelApp:
     def __init__(self):
         self.options = webdriver.ChromeOptions()
 
-        # Makes browser invisible
+        # Hides browser
         self.options.add_argument('headless')
 
         # Optional code for downloading PDFs:
@@ -35,6 +33,7 @@ class excelApp:
             self.loginError()
         
         self.excelTable = self.findExcelTable('Table1', self.sh._tables)
+        self.createExcelDictionary()
 
         self.getLastUpdate()
         
@@ -78,6 +77,11 @@ class excelApp:
             if table.displayName == table_name:
                 return table
     
+    def createExcelDictionary(self):
+        self.excel_dict={}
+        for excel_row in self.sh[self.excelTable.ref][1:]:
+            self.excel_dict.update({(excel_row[3].value,excel_row[4].value):(excel_row[1].value,excel_row[0].row)})
+
     def getLastUpdate(self):
         if type(self.sh['B1'].value)==datetime:
             self.last_updated = self.sh['B1'].value
@@ -112,7 +116,19 @@ class excelApp:
                 self.First_name = tempRowData[2]
                 self.Last_name = tempRowData[3]
                 
-                self.checkAndUpdateExcel()
+                try:
+                    rowData = self.excelDict[(self.First_name,self.Last_name)]
+                except:
+                    continue
+                if type(rowData[0])==None:
+                    sh.cell(None,rowData[1],1).value=self.Returned_Date
+                elif type(rowData[0])==datetime:
+                    if rowData[0]<self.Returned_Date:
+                        sh.cell(None,rowData[1],1).value=self.Returned_Date
+                else:
+                    sh['errors']='The Received Date column in row {} must be empty or a date'.format(rowData[1])
+                    self.driver.close()
+                    exit()
                         
                 # For additional features:            
                 # Zip_code = tempRowData[4]
@@ -126,25 +142,11 @@ class excelApp:
                 if self.counter != 0:
                     self.sh['B1'] = self.new_last_updated
 
-    def checkAndUpdateExcel(self):
-        for excel_row in self.sh[self.excelTable.ref][1:]:
-            if (excel_row[3].value == self.First_name) & (excel_row[4].value == self.Last_name):
-                if excel_row[1].value==None:
-                    excel_row[1].value=self.Returned_Date
-                elif type(excel_row[1].value)==datetime:
-                    if excel_row[1].value<self.Returned_Date:
-                        pass
-                        # TODO
-                    elif excel_row[1].value>self.Returned_Date:
-                        pass
-                        # TODO
-                else:
-                    self.sh['errors']='The Received Date column in row {} must be empty or a date'.format(excel_row[0].row)
-                
-                break
-
     def saveAndExit(self):
-        self.wb.save(r'C:\Users\Aaron\Desktop\VBA finance advisor app\ExcelFile.xlsx')
+        try:
+            self.wb.save(r'C:\Users\Aaron\Desktop\VBA finance advisor app\ExcelFile.xlsx')
+        except:
+            self.sh['errors']='Saving Error'
         exit()  
 
 excelApp()
