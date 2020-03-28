@@ -1,13 +1,14 @@
 from selenium import webdriver
 import openpyxl
 from datetime import datetime
+from math import ceil
 
 class excelApp:
     def __init__(self):
         self.options = webdriver.ChromeOptions()
 
         # Hides browser
-        self.options.add_argument('headless')
+        ####self.options.add_argument('headless')
 
         # Optional code for downloading PDFs:
         # self.options.add_experimental_option('prefs', {
@@ -18,6 +19,8 @@ class excelApp:
         # })
 
         self.linkToExcel()
+
+        self.getBrowser()
 
         self.page = 1
         self.url = 'https://dash.lead.ac/repositories?page='+str(self.page)
@@ -38,7 +41,10 @@ class excelApp:
         # If counter==0 when dates match, it is
         # If counter>0 when dates match, it isn't and stores new date
         self.counter = 0
-        
+
+        self.excelDict = {}
+        self.createKeysForExcelDictionary()
+
         self.updateTables()
         
         #Failsafe
@@ -46,16 +52,17 @@ class excelApp:
 
     def getBrowser(self):
         try:
-            self.driver = webdriver.Chrome(executable_path=r'C:\Users\Aaron\Desktop\VBA finance advisor app/chromedriver',options=self.options)
+            self.driver = webdriver.Chrome(executable_path=r'C:\Users\Aaron\Desktop\VBA finance advisor app/chromedriver',
+                                        options=self.options)
         except:
-            self.firstSheet['error'] = 'Webdriver Error'
-        self.saveAndExit()
+            self.firstSheet['D1'] = 'Webdriver Error'
+            self.saveAndExit()
 
     def linkToExcel(self):
         self.wb = openpyxl.load_workbook(r'C:\Users\Aaron\Desktop\VBA finance advisor app\ExcelFile.xlsx')
         self.sheetNames = self.wb.sheetnames
-        self.firstSheet = self.sheetNames[0]
-        self.firstSheet['error'] = None # Resets 'error' cell
+        self.firstSheet = self.wb[self.sheetNames[0]]
+        self.firstSheet['D1'],self.firstSheet['F1'] = None,None # Resets 'error' cells
 
     def goToWebsite(self):
         self.driver.get(self.url)
@@ -70,7 +77,7 @@ class excelApp:
         button.click()
 
     def loginError(self):
-        self.firstSheet['errors'] = 'Login Error'
+        self.firstSheet['D1'] = 'Login Error'
         self.saveAndExit()
 
     def saveAndExit(self):
@@ -83,7 +90,6 @@ class excelApp:
         exit()
     
     def createKeysForExcelDictionary(self):
-        self.excelDict = {}
         for name in self.sheetNames:
             self.excelDict.update({name:None})
 
@@ -93,11 +99,13 @@ class excelApp:
         elif type(self.firstSheet['B1'].value)==str:
             self.lastUpdated = datetime.strptime(self.firstSheet['B1'].value,'%Y-%m-%d %H:%M%p')
         else:
-            self.firstSheet['errors'] = 'Last Updated cannot be of the type {}'.format(type(self.firstSheet['B1'].value))
+            self.firstSheet['D1'] = 'Last Updated cannot be of the type {}'.format(type(self.firstSheet['B1'].value))
             self.saveAndExit()
 
     def updateTables(self):
-        while True:
+        self.findRowTotal()
+        
+        for page in self.totalPages:
             if self.page != 1:
                 self.goToWebsite()
             
@@ -108,6 +116,11 @@ class excelApp:
 
             self.page+=1
 
+    def findRowTotal(self):
+        firstWebTable = self.driver.find_element_by_id('triage_form')
+        rowTotalFooter = firstWebTable.find_element_by_class_name('dataTables_info').text
+        self.totalPages = ceil(int(rowTotalFooter.split()[-2])/25) # Takes total rows and divides by number of rows per page (25)
+
     def scrapeWebTableAndUpdateExcel(self):
         for webRow in self.webRows[1:]:
             self.tempRowData = []
@@ -115,28 +128,29 @@ class excelApp:
                 self.tempRowData.append(col.text)
             
             self.Returned_Date = datetime.strptime(self.tempRowData[7],'%Y-%m-%d %H:%M%p')
-            if self.Returned_Date > self.lastUpdated:
+            if self.Returned_Date > self.lastUpdated: # Only executes if Excel needs updating
                 if self.counter == 0:
                     self.newLastUpdated = self.Returned_Date
 
+                self.currentSheetKey = self.tempRowData[8]
                 self.checkForSheetName()
 
-                if self.excelDict[self.currentSheet] == None:
+                if self.excelDict[self.currentSheetKey] == None:
                     self.createValuesForExcelDictionary()
 
                 self.First_name = self.tempRowData[2]
                 self.Last_name = self.tempRowData[3]            
                 self.Zip_code = self.tempRowData[4] # Used in case of duplicate names
                 self.PDF_link = webRow.find_element_by_link_text('PDF').get_attribute('href') #column index 12
-                
+
                 # Checks for customer name in sheet
                 try:
-                    self.rowData = self.excelDict[(self.First_name,self.Last_name,self.Zip_code)]
+                    self.rowData = self.excelDict[self.currentSheetKey][(self.First_name,self.Last_name,self.Zip_code)]
                 except:
-                    if self.currentSheet['F1'] == None: # Updates 'Name Errors'
+                    if self.currentSheet['F1'].value == None: # Updates 'Name Errors'
                         self.currentSheet['F1'] = self.First_name+' '+self.Last_name
                     else:
-                        self.currentSheet['F1'] += ', '+self.First_name+' '+self.Last_name
+                        self.currentSheet['F1'] = self.currentSheet['F1'].value+', '+self.First_name+' '+self.Last_name
                     continue # Continue can be returned from a function, so left it in
    
                 self.updateExcel()
@@ -149,9 +163,9 @@ class excelApp:
 
     def checkForSheetName(self): # Checks for sheet name in workbook
         try:
-            self.currentSheet = self.wb[self.tempRowData[8]]
+            self.currentSheet = self.wb[self.currentSheetKey]
         except:
-            self.firstSheet['error'] = 'Sheet Name Error: {} does not exist.'.format(self.currentSheet)
+            self.firstSheet['D1'] = 'Sheet Name Error: {} does not exist.'.format(self.currentSheetKey)
             self.saveAndExit()
 
     def createValuesForExcelDictionary(self):
@@ -160,13 +174,13 @@ class excelApp:
         for excelRow in self.currentSheet[self.excelTable.ref][1:]:
             tempDict.update({(excelRow[3].value,excelRow[4].value,excelRow[9].value):(excelRow[1].value,excelRow[12],excelRow[0].row)})
             # Of the form {(FirstName,LastName,ZipCode):(LastUpdated,PDF_hyperlink,Row)}
-        self.excelDict[self.currentSheet]=tempDict
+        self.excelDict[self.currentSheetKey]=tempDict
 
     def checkForTableName(self):
         try:
-            self.excelTable = self.findExcelTable('Table1',self.currentSheet._tables)
+            self.excelTable = self.findExcelTable('Table'+self.currentSheetKey,self.currentSheet._tables)
         except:
-            self.firstSheet['error'] = 'Table Name Error: Table1 does not exist in sheet {}.'.format(self.currentSheet)
+            self.firstSheet['D1'] = 'Table Name Error: Table{0} does not exist in sheet {0}.'.format(self.currentSheetKey)
             self.saveAndExit()
 
     def findExcelTable(self,tableName,tables):
@@ -175,17 +189,17 @@ class excelApp:
                 return table
 
     def updateExcel(self):
-        if type(self.rowData[0])==None:
-            self.currentSheet.cell(None,self.rowData[2],1).value=self.Returned_Date
-        elif type(self.rowData[0])==datetime:
+        if type(self.rowData[0]) == None:
+            self.currentSheet.cell(None,self.rowData[2],1).value = self.Returned_Date
+        elif type(self.rowData[0]) == datetime:
             if self.rowData[0]<=self.Returned_Date: # 'equals to' in '<=' allows for corrections while rerunning following errors.
-                self.currentSheet.cell(None,self.rowData[2],1).value=self.Returned_Date
-                if self.rowData[1]==None:
-                    self.currentSheet.cell(None,self.rowData[2],12).value=self.PDF_link
+                self.currentSheet.cell(None,self.rowData[2],1).value = self.Returned_Date
+                if self.rowData[1] == None:
+                    self.currentSheet.cell(None,self.rowData[2],12).value = self.PDF_link
                 else:
-                    self.currentSheet.cell(None,self.rowData[2],12).value+='; '+self.PDF_link
+                    self.currentSheet.cell(None,self.rowData[2],12).value = self.currentSheet.cell(None,self.rowData[2],12).value+'; '+self.PDF_link
         else:
-            self.firstSheet['errors'] = 'The Received Date column in row {} must be empty or a date'.format(self.rowData[1])
+            self.firstSheet['D1'] = 'The Received Date column in row {} must be empty or a date'.format(self.rowData[2])
             self.saveAndExit()
 
 
