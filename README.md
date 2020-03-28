@@ -10,7 +10,7 @@ I plan to create a Docker file for it.
 
 ### 2. Cell D1 of the first (leftmost) spreadsheet is used as the "Run Errors" cell. It tells the user if there was an error at various points in the process. For instance, the app can tell when there is a webdriver error, login error, spreadsheet format error, cell format error, etc.
 
-### 3. Cell F1 for each respective spreadsheet is used as the "Name Error" cell. It lists the names that were on the webpage but not in the Excel doc.
+### 3. Cell F1 for each respective spreadsheet is used as the "Name Error" cell. It lists the names that were on the webpage but not in the respective spreadsheet for a given Order Number.
 
 ### 4. Each spreadsheet should be named after the correspoding Order Number.
 
