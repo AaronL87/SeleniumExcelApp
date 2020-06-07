@@ -3,7 +3,6 @@ Scrapes financial adviser's lead info off of a lead website and updates an Excel
 
 I plan to create a Docker file for it.
 
-
 ### To properly set up Excel workbook to interface with this app:
 
 1. Cell B1 of the first (leftmost) spreadsheet is used as the "Last Updated" cell. It tells the app when the app last successfully ran.
