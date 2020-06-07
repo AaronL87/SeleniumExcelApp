@@ -11,8 +11,8 @@ I plan to create a Docker file for it.
 4. Each spreadsheet should be named after the correspoding Order Number.
 5. Each spreadsheet should have a table with all of the client data, and that table should be named: 'Table'+str(CorrespondingOrderNumber)
 6. Each table should have the folloing columns:
-  1. Column B is for Received dates. This is is a datetime of the form: '%Y-%m-%d %H:%M%p'
-  2. Column D is First Name
-  3. Column E is Last Name
-  4. Column J is Zip Code
-  5. Column M is JPG Hyperlink
+  - Column B is for Received dates. This is is a datetime of the form: '%Y-%m-%d %H:%M%p'
+  - Column D is First Name
+  - Column E is Last Name
+  - Column J is Zip Code
+  - Column M is JPG Hyperlink
